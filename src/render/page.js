@@ -136,10 +136,31 @@ function slot(r) {
 
   const name = live ? esc(r.present(r.value)) : esc(r.label);
 
+  /* A slot with a mark carries the mark alone: press and go. The text it drops
+     moves into the accessible name rather than disappearing, so the destination
+     is still reachable without sight, and the name is the record's own derived
+     value -- the same string the href points at.
+
+     A slot with no visible text leans harder on the mark being correct, not
+     less, since the glyph is now the only thing a sighted reader has to go on.
+     The mark-matches-destination check is unchanged, and a second check makes
+     sure the accessible name is present and is the register's own value.
+
+     Domain keeps its label. It is not a mark, and there is no icon for "domain"
+     that would not have to be invented. */
+  if (live && mark) {
+    return (
+      `<li class="slot-item slot-item--icon">` +
+      `<a class="slot slot--icon" data-slot="${esc(r.id)}" href="${esc(href)}"` +
+      ` rel="noopener noreferrer" aria-label="${name} on ${esc(mark.name)}">` +
+      glyph +
+      `</a></li>`
+    );
+  }
+
   if (live) {
     return (
-      `<li><a class="slot" data-slot="${esc(r.id)}" href="${esc(href)}" rel="noopener noreferrer">` +
-      glyph +
+      `<li class="slot-item"><a class="slot" data-slot="${esc(r.id)}" href="${esc(href)}" rel="noopener noreferrer">` +
       `<span class="slot-name">${name}</span></a></li>`
     );
   }
@@ -148,8 +169,8 @@ function slot(r) {
      none, and a nested span here would make the slot impossible to extract with
      a non-recursive match -- the gate would silently grade a truncated slot. */
   return (
-    `<li><span class="slot" data-slot="${esc(r.id)}" role="link" aria-disabled="true" tabindex="0"` +
-    ` aria-describedby="${esc(sentenceId(r))}" title="${esc(r.absent)}">${name}</span></li>`
+    `<li class="slot-item"><span class="slot" data-slot="${esc(r.id)}" role="link" aria-disabled="true"` +
+    ` tabindex="0" aria-describedby="${esc(sentenceId(r))}" title="${esc(r.absent)}">${name}</span></li>`
   );
 }
 

@@ -352,7 +352,13 @@ function gateChannelSlots() {
   const bad = [];
   const lines = [];
 
-  const slots = html.match(/<(a|span)\b[^>]*class="slot"[\s\S]*?<\/\1>/g) || [];
+  /* Keyed on `data-slot`, not on the class. Matching `class="slot"` exactly
+     meant that adding a modifier class made two of the three slots invisible to
+     this gate -- it reported them missing rather than checking them, which is
+     the safe direction but still a gate that stopped seeing its subject because
+     of a styling change. `data-slot` is the marker the renderer emits for
+     exactly this, and nothing else carries it. */
+  const slots = html.match(/<(a|span)\b[^>]*data-slot="[^"]*"[\s\S]*?<\/\1>/g) || [];
   if (slots.length !== CHANNEL_IDS.length) {
     bad.push(`the register declares ${CHANNEL_IDS.length} channel(s) but ${slots.length} slot(s) rendered`);
   }
@@ -424,6 +430,26 @@ function gateChannelSlots() {
       }
       if (svgCount > (declared ? 1 : 0) || imgCount > 0) {
         bad.push(`slot ${id}: carries artwork that is not its destination's mark`);
+      }
+
+      /* Accessible name. A slot may drop its visible text down to the mark
+         alone, but the destination has to stay reachable without sight, so the
+         text has to move into the accessible name rather than disappear. And
+         the name must be the record's own derived value, not a label written at
+         the render site, for the same reason the href must be: two strings
+         describing one destination are two strings that can drift. */
+      const visible = slot.replace(/<[^>]*>/g, '').trim();
+      const labelled = slot.match(/aria-label="([^"]*)"/);
+      const want = String(r.present(r.value));
+
+      if (!visible && !labelled) {
+        bad.push(`slot ${id}: no visible text and no accessible name, so it is unreachable without sight`);
+      } else if (!visible && !labelled[1].includes(want)) {
+        bad.push(`slot ${id}: accessible name "${labelled[1]}" does not carry the register's value "${want}"`);
+      } else if (!visible) {
+        lines.push(`slot ${id}: mark only, accessible name carries "${want}"`);
+      } else if (!visible.includes(want) && !labelled) {
+        bad.push(`slot ${id}: shows "${visible}", which is not the register's value "${want}"`);
       }
     } else if (svgCount > 0 || imgCount > 0 || declared) {
       bad.push(`slot ${id}: carries a mark while its record is not stated`);

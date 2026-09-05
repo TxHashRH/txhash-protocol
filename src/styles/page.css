@@ -175,8 +175,9 @@ body {
 }
 
 /* The list items are the flex items, not the controls inside them, so sizing
-   has to pass through both or the controls stay at content width and the column
-   comes out ragged. */
+   has to pass through both or the controls stay at content width. The labelled
+   slot takes the remaining width; the icon buttons stay square and do not
+   stretch, because a 17px glyph centred in a 240px box is not a button. */
 .slots li {
   display: flex;
   flex: 1 1 auto;
@@ -184,6 +185,18 @@ body {
 
 .slots .slot {
   flex: 1 1 auto;
+}
+
+.slots li.slot-item--icon {
+  flex: 0 0 auto;
+}
+
+.slot--icon {
+  flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  justify-content: center;
 }
 
 /* One element, two conditions, identical geometry. A live control carries the
@@ -467,13 +480,11 @@ body {
     margin-top: 26px;
   }
 
-  /* One control per line, full width of the rail. Wrapped inline they read as
-     loose chips; stacked they read as a list of channels, and the marks align
-     into a column the eye can run down. */
+  /* One row: the labelled channel takes the width it needs, the two marks sit
+     beside it as square buttons. Stacking them full-width was right when every
+     slot carried text and is wrong now that two of them are glyphs. */
   .slots {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
+    gap: 8px;
   }
 
   .row {
@@ -546,11 +557,6 @@ body {
 
   .slots {
     gap: 8px;
-  }
-
-  .slot {
-    flex: 1 1 auto;
-    justify-content: center;
   }
 }
 

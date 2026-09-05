@@ -5,9 +5,16 @@ stays out of the document until it is confirmed in writing.
 
 ## State of the register
 
-Seven records. Three recorded, one not confirmed, three not supplied. The page
+Six records. Three recorded, one not confirmed, two not supplied. The page
 derives those figures from the register, so this paragraph can go stale without
 the document going stale with it.
+
+It was seven until Discord was removed. Dropping the record was the entire edit:
+the tally sentence, the strip, the page description and every gate read the
+array's length, so six followed with no figure adjusted anywhere. That is the
+property the register exists for, and it was re-proven rather than assumed —
+the full suite was re-run on six, and a gate that had quietly assumed seven
+would have failed rather than passed quietly.
 
 Two records changed state on 2026-09-06 that had failed the day before. Nothing
 here is carried forward on trust; every check is re-run and re-dated.
@@ -50,9 +57,16 @@ All dates are the register's `CHECKED` constant, 2026-09-06.
   is **not** lifted onto this page. A bio is something the client wrote on
   somebody else's platform, not a description given to us, and copying it would
   turn an unverified marketing line into a fact this page asserts.
-- **Discord — raised, then ruled out.** Listed rather than dropped: a channel
-  that was discussed and has no confirmed address is a known absence, and a
-  reader is better served seeing it was considered than finding a gap.
+- **Discord — raised, never supplied, and not on the page.** No invite was ever
+  confirmed. It was briefly carried as a record in the absent state, on the
+  reasoning that a discussed-and-missing channel is a known absence worth
+  showing. The client's instruction is the opposite and it governs: channels
+  they do not have should not appear at all, not even as a stated absence.
+  The record was removed from the register and the page.
+
+  Kept here because this is our record of the engagement, not theirs. If it
+  comes up again, the position is that it was raised, nothing was supplied, and
+  it was taken off the page deliberately rather than forgotten.
 
 ## The design
 
@@ -124,6 +138,26 @@ relationship, which is an affiliation claim and is not what these are.
 Because a mark only makes sense on a control that leads somewhere, a slot whose
 record is not `stated` renders **no mark at all** — a platform logo on a control
 that goes nowhere asserts a relationship that has not been established.
+
+**The marked slots carry the mark alone**, no visible text: press and go. The
+text they drop moves into the accessible name rather than disappearing, so the
+destination stays reachable without sight, and that name is the record's own
+derived value — the same string the href points at, not a label written at the
+render site. Two strings describing one destination are two strings that can
+drift.
+
+A slot with no visible text depends on the mark being right *more* than a
+labelled one did, since the glyph is now the only thing a sighted reader has.
+So the mark-matches-destination check is unchanged and a second check was added:
+a slot with no visible text must have an accessible name, and that name must
+carry the register's value. Both failure directions are proven — missing
+outright, and present but saying something else.
+
+The domain slot keeps its label. It is not a mark, and there is no icon for
+"domain" that would not have to be invented.
+
+Measured: each marked slot is 44 x 44 with a 17 x 17 glyph centred in it, and
+the header stays on one row at 360.
 
 The gate checks a **correspondence, not a shape**: a mark is permitted only on a
 stated, linked slot, and its `data-mark` must be the host of the record's own
@@ -209,7 +243,7 @@ shipped-image-metadata gate added — there is none today because no image ships
 | render coverage and tally | a record renders zero or twice, something renders with no record, a record carries no date, a date is not the checked date, a stated record hides its value or its basis, the strip disagrees with the register's length, or a count is not the register's own |
 | contract safety | while null: a copy affordance or an address-shaped string. Once stated: an endpoint reporting the wrong chain, no expected chain id to pin it, an address the document does not show, an address the register does not hold, no way to verify, or no code behind it |
 | link discipline | an href points anywhere but an in-page fragment or a stated record's value |
-| channel slots | a slot links while not stated, sits inert while stated and linked, loses keyboard reach, shows wording other than the register's own, carries a mark while not stated, or carries a mark that is not its own destination's host |
+| channel slots | a slot links while not stated, sits inert while stated and linked, loses keyboard reach, shows wording other than the register's own, carries a mark while not stated, carries a mark that is not its own destination's host, or drops its visible text without an accessible name carrying the register's value |
 | built document is newer than its sources | the document being graded is older than the source that produced it |
 | emitted html comment count is 0 | any comment survives into the shipped document |
 | no client javascript | a script tag, an inline handler, or a `javascript:` url ships |
@@ -218,8 +252,9 @@ shipped-image-metadata gate added — there is none today because no image ships
 | palette provenance | tokens.css drifts from its sources, a token cites a source never sampled, a token drifts in hue or chroma from its source, a token claims to be unmodified while emitting something else, a stray colour is typed into the provenance record, a source file names a colour at all, or the built document shows a hex no source produced |
 | contrast on both grounds | a token misses its floor against either painted ground |
 
-Thirty cases prove these can fail, run on throwaway copies so the repository is
-never left broken. Every one was made to fail on purpose before being trusted.
+Thirty-three cases prove these can fail, run on throwaway copies so the
+repository is never left broken. Every one was made to fail on purpose before
+being trusted.
 
 ### What the proof suite caught in the redesign
 
@@ -229,10 +264,19 @@ arrived, the most important block on the page would have shown a blank rule and
 gone on saying no address had been given. It now runs through the same
 two-branch helpers as every other row.
 
-It also caught two of its own tests testing nothing: a mutation pinned to a
+It also caught three of its own tests testing nothing: a mutation pinned to a
 palette value that no longer existed, so the edit silently no-opped and the case
-reported a pass for a file it had not touched; and a mark mutation that forced a
-variable the inert branch never interpolated.
+reported a pass for a file it had not touched; a mark mutation that forced a
+variable the inert branch never interpolated; and one that inserted a `value`
+key *above* the record's existing one, where the later key won and the record
+was left unchanged.
+
+The slot gate itself had a quieter version of the same fault. It extracted slots
+by matching `class="slot"` exactly, so adding a modifier class made two of the
+three slots invisible to it — it reported them missing rather than checking
+them. Safe direction, but a gate that stops seeing its subject because of a
+styling change is still a gate that stopped working. It keys on `data-slot` now,
+which is the marker emitted for exactly that purpose.
 
 ### The contract gate, and why it is written this way
 

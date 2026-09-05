@@ -167,22 +167,14 @@ export const records = [
     present: repoFrom,
   },
 
-  {
-    id: 'discord',
-    label: 'Discord',
-    group: 'channels',
-    state: STATE.ABSENT,
-    value: null,
-    candidate: null,
-    source: null,
-    /* Raised by the client only to rule out. Listed rather than dropped: a
-       channel that was discussed and has no confirmed address is a known
-       absence, and a reader is better served seeing it was considered than
-       finding a gap they cannot interpret. */
-    absent:
-      'Raised, then ruled out. No invite has been confirmed, so none is published. A wrong invite is worse than none, because it sends people somewhere this project does not control.',
-    present: (v) => v,
-  },
+  /* A channel the client does not have does not belong here, not even in the
+     absent state. Deleting the record is the whole edit: nothing counts records
+     for itself, so the tally, the strip, the page description and every gate
+     follow from this array's length on their own.
+
+     Which channels have been discussed and dropped is recorded in NOTES.md.
+     That is our record of the engagement and it belongs there, not as a comment
+     keeping a deleted record half-alive in the file it was deleted from. */
 ];
 
 export const groups = [
@@ -201,7 +193,7 @@ export const isStated = (r) => r.state === STATE.STATED;
  * `value`, so a channel cannot be linked without being stated, and a stated
  * channel cannot point somewhere other than what the page displays.
  */
-export const CHANNEL_IDS = ['domain', 'x', 'repo', 'discord'];
+export const CHANNEL_IDS = ['domain', 'x', 'repo'];
 
 export const links = Object.fromEntries(
   CHANNEL_IDS.map((id) => {

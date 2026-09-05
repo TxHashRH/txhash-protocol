@@ -1,0 +1,14 @@
+{
+  "name": "txhash",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A static docket generated from one register.",
+  "scripts": {
+    "palette": "node scripts/palette.js",
+    "build": "node scripts/palette.js && node scripts/build.js",
+    "verify": "node scripts/verify.js",
+    "check": "npm run build && npm run verify",
+    "serve": "node scripts/serve.js"
+  }
+}

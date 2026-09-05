@@ -133,11 +133,10 @@ a blanket address-reject. Both directions are proven.
 
 ### `ch` does not measure what it says
 
-Widths were originally written in `ch`. `28ch` computed to **187px** while 28
-zeros in the same resolved font measure **262px** — `ch` resolved against a
-different font than the one that paints, so every width in `ch` came out about
-29% narrower than intended. All of them are in `rem` now. A unit that does not
-measure what it claims to is worse than an arbitrary one.
+Widths here were originally written in `ch` and came out about 29% narrower than
+intended. All of them are in `rem` now. The finding is portable and is written
+up on its own below, under "Portable finding", in a form that can be copied into
+another project's notes without editing.
 
 ## Palette
 
@@ -303,6 +302,63 @@ The skip link is the one element deliberately outside the viewport until
 focused. `:focus` cannot be triggered while the pane is not focused, so it is
 measured by applying its own focus declarations as a probe: 166 x 50 at left 12,
 fully on screen.
+
+## Portable finding: `ch` may not measure the font that paints
+
+Written to be copied into another project's notes as-is. Nothing in this section
+is specific to this project.
+
+**Symptom.** Widths set in `ch` come out narrower than the character count
+implies. Nothing errors, nothing warns, and the layout still passes overflow and
+tap-target checks. It just looks slightly tight, which is the kind of wrong that
+survives review.
+
+**Measured.** On an element whose computed `font-family` resolved to a monospace
+stack at `font-size: 17px`:
+
+```
+width: min(28ch, 100%)    ->  computed   186.9px
+28 literal "0" glyphs     ->  measured   262px      (9.36px advance)
+implied ch advance        ->             6.68px
+```
+
+71% of the real advance, so every width written in `ch` was about 29% narrower
+than chosen.
+
+**Cause, stated to the limit of what was actually verified.** `ch` is defined as
+the advance of "0" in the element's font. The value it resolved to did not match
+the advance of "0" in the font that painted. The element's computed
+`font-family` and `font-size` were confirmed to be the intended ones, so the
+divergence sits between the font used to resolve the unit and the font used to
+render. Which font it resolved against was **not** pinned down. The discrepancy
+is reproducible and measurable; no mechanism is claimed beyond that.
+
+**Detection.** Run against any element sized in `ch`:
+
+```js
+const el = document.querySelector(SELECTOR);
+const cs = getComputedStyle(el);
+const probe = document.createElement('span');
+probe.style.cssText =
+  'position:absolute;visibility:hidden;white-space:pre;font:' + cs.font;
+probe.textContent = '0'.repeat(28);
+document.body.appendChild(probe);
+const real = probe.getBoundingClientRect().width;
+probe.remove();
+console.log({ declaredWidth: cs.width, twentyEightZeros: real });
+```
+
+If those two disagree, every `ch` width in that stylesheet is wrong by the ratio
+between them.
+
+**Fix.** Express widths in `rem`, and choose the number by measuring the text
+actually meant to fit rather than by counting characters. A unit that does not
+measure what it claims to is worse than an arbitrary one, because it looks
+principled and therefore does not get checked.
+
+**Where it hides.** Any measure, column, reserved field or truncation width
+sized in `ch`, and especially anywhere a comment says "about N characters" next
+to a `ch` value — the comment is the assertion nobody tested.
 
 ## Git
 

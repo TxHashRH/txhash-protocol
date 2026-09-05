@@ -264,6 +264,14 @@ export function render() {
       `<title>TxHash</title>` +
       `<meta name="description" content="${esc(description)}">` +
       `<meta name="color-scheme" content="dark">` +
+      /* Same-origin, derived from the client's own mark on their own ground.
+         Two sizes, resampled here rather than left to the browser to shrink a
+         32 into a 16. No og:image: a preview image needs an absolute URL, the
+         domain resets the connection, and a URL that does not answer is a false
+         claim of exactly the kind this register exists to avoid. It lands in
+         the same edit that flips the domain record. */
+      `<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">` +
+      `<link rel="icon" type="image/png" sizes="16x16" href="/icon-16.png">` +
       `<style>__STYLES__</style>` +
       `</head>` +
       `<body>` +

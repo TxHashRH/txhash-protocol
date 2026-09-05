@@ -16,6 +16,7 @@ import { records, groups, links, CHANNEL_IDS, CHECKED, STATE, isStated, tally, c
 import { derive, GROUNDS, TOKENS, SOURCES } from '../src/config/palette.js';
 import { render as renderTokens, OUT as TOKENS_CSS } from './palette.js';
 import { SALT, MAX_N, DIGESTS, normalise } from './deny.js';
+import { MASTER, SIZES, outFor, derive as deriveIcon } from './icons.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -616,6 +617,105 @@ function gateGitIdentity() {
   );
 }
 
+/* Gate 13 ------------------------------------------------------------------
+   Shipped images carry no metadata.
+
+   Read out of the EMITTED BYTES, not out of the code that wrote them. The
+   deriver is built to emit IHDR, IDAT and IEND and nothing else, so this gate
+   should never fire -- which is exactly why it has to exist and be tested. The
+   supplied artwork carries eXIf, iTXt and XMP that fingerprints the client's
+   editor and account, and the first binary this project ships goes onto a page
+   anyone can fetch. "The encoder does not write metadata" is a claim about
+   source; this is a measurement of the file.
+
+   Anything with a lowercase first letter in a PNG chunk type is ancillary, so
+   the check is structural rather than a list of chunk names to keep current.
+
+   When the artwork is present the icons are also re-derived and diffed, so an
+   icon cannot be swapped for a hand-made one carrying whatever its editor left
+   in it. A clone has no artwork, and that is not a failure: the derived files
+   are what ships and the metadata check above still reads them. */
+async function gateImageMetadata() {
+  const bad = [];
+  const lines = [];
+
+  const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.avif']);
+  const images = walk(resolve(ROOT, 'public')).filter((p) => IMAGE_EXT.has(extname(p).toLowerCase()));
+
+  const PNG_SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+  for (const p of images) {
+    const buf = readFileSync(p);
+
+    if (buf.subarray(0, 8).equals(PNG_SIG)) {
+      const chunks = [];
+      let i = 8;
+      let ok = true;
+      while (i + 8 <= buf.length) {
+        const len = buf.readUInt32BE(i);
+        const type = buf.toString('latin1', i + 4, i + 8);
+        chunks.push(type);
+        if (type === 'IEND') break;
+        i += 12 + len;
+        if (i > buf.length) {
+          ok = false;
+          break;
+        }
+      }
+      if (!ok) bad.push(`${rel(p)}: chunk table runs past the end of the file`);
+
+      const ancillary = chunks.filter((c) => c[0] === c[0].toLowerCase());
+      if (ancillary.length) {
+        bad.push(`${rel(p)}: carries ancillary chunk(s) ${ancillary.join(', ')}`);
+      } else {
+        lines.push(`${rel(p)}: ${chunks.join(' ')} (${buf.length} bytes)`);
+      }
+      continue;
+    }
+
+    if (buf[0] === 0xff && buf[1] === 0xd8) {
+      const markers = [];
+      let i = 2;
+      while (i + 4 <= buf.length && buf[i] === 0xff) {
+        const m = buf[i + 1];
+        if (m === 0xda) break;
+        if ((m >= 0xe0 && m <= 0xef) || m === 0xfe) markers.push(`0x${m.toString(16)}`);
+        i += 2 + buf.readUInt16BE(i + 2);
+      }
+      if (markers.length) bad.push(`${rel(p)}: carries APP/COM marker(s) ${markers.join(', ')}`);
+      else lines.push(`${rel(p)}: no APP or COM markers (${buf.length} bytes)`);
+      continue;
+    }
+
+    bad.push(`${rel(p)}: not a format this gate can read, so its metadata cannot be checked`);
+  }
+
+  /* Re-derive and diff, when the artwork that produced them is on disk. */
+  if (existsSync(MASTER)) {
+    for (const size of SIZES) {
+      const out = outFor(size);
+      if (!existsSync(out)) {
+        bad.push(`icon-${size}.png is declared but was not emitted`);
+        continue;
+      }
+      const fresh = deriveIcon(size).bytes;
+      if (!fresh.equals(readFileSync(out))) {
+        bad.push(`icon-${size}.png has drifted from what the deriver produces from the master`);
+      } else {
+        lines.push(`icon-${size}.png matches a fresh derivation from the master`);
+      }
+    }
+  } else {
+    lines.push('master artwork not on disk, so the icons were checked for metadata but not re-derived');
+  }
+
+  record(
+    'shipped images carry no metadata',
+    bad.length === 0,
+    bad.length ? bad.join('\n    ') : `${images.length} image(s):\n    ` + lines.join('\n    ')
+  );
+}
+
 /* Gate 10 ------------------------------------------------------------------
    Palette provenance. tokens.css is regenerated from the coordinates and diffed
    against what is on disk, and no colour literal may appear anywhere else. */
@@ -771,6 +871,7 @@ gateNoHtmlComments();
 gateNoClientJs();
 gateDeniedTerms();
 gateGitIdentity();
+await gateImageMetadata();
 gatePalette();
 gateContrast();
 

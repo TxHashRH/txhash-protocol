@@ -6,7 +6,8 @@
   "description": "A static docket generated from one register.",
   "scripts": {
     "palette": "node scripts/palette.js",
-    "build": "node scripts/palette.js && node scripts/build.js",
+    "icons": "node scripts/icons.js",
+    "build": "node scripts/palette.js && node scripts/icons.js && node scripts/build.js",
     "verify": "node scripts/verify.js",
     "check": "npm run build && npm run verify",
     "serve": "node scripts/serve.js"

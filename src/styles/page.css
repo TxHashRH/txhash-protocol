@@ -1,6 +1,29 @@
-/* Layout and type. No colour is named in this file: every paint is a var()
-   resolved from tokens.css, which the palette gate enforces as the only file
-   allowed to hold a literal. */
+/* Layout and type.
+
+   No colour is named here: every paint is a var() resolved from tokens.css,
+   which the palette gate enforces as the only file allowed to hold a literal.
+
+   TYPE. No webfont ships and none is loaded. The page makes no third-party
+   request, and there is no licensed face in this repository to self-host or
+   subset, so shipping one would mean taking a face we have no right to. Two
+   system stacks are used instead, with distinct jobs: monospace for everything
+   that is data -- indices, labels, values, states, dates -- and the system
+   sans for running prose. That split is the page's main typographic device.
+   The register reads as an instrument; the sentences read as writing.
+
+   RHYTHM. Everything is a multiple of 4, most of it a multiple of 8. */
+
+:root {
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* In rem, not ch. `ch` resolved to 6.68px here while the zero it is supposed
+     to measure actually advances 9.36px in the font that paints, so every width
+     written in ch came out about 29% narrower than intended. A unit that does
+     not measure what it claims to is worse than an arbitrary one. */
+  --measure: 30rem;
+  --pad: 24px;
+}
 
 *,
 *::before,
@@ -14,12 +37,17 @@ html {
 
 body {
   margin: 0;
-  padding: 0;
   background: var(--ground);
   color: var(--ink-1);
-  font: 400 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--ink-1);
+  color: var(--ground);
 }
 
 .skip {
@@ -29,256 +57,505 @@ body {
 }
 
 .skip:focus {
-  left: 8px;
-  top: 8px;
+  left: 12px;
+  top: 12px;
   z-index: 2;
   padding: 12px 16px;
   background: var(--raised);
   color: var(--ink-1);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
   outline: 2px solid var(--ink-1);
   outline-offset: 2px;
 }
 
-.wrap {
-  max-width: 62rem;
+/* ------------------------------------------------------------------ sheet */
+
+.sheet {
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 40px 24px 96px;
+  padding: 40px var(--pad) 96px;
 }
 
-/* ---------------------------------------------------------------- masthead */
-
-.masthead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 12px 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--rule);
-}
+/* --------------------------------------------------------------- masthead */
 
 .wordmark {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.015em;
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
   color: var(--ink-1);
 }
 
-/* The tally is printed from the register's own length. No count is written as
-   a literal anywhere in the renderer or in this stylesheet. */
-.tally {
-  margin: 0;
+/* The register in miniature. Shape carries state, so this is readable in
+   greyscale and readable before the legend below it. */
+.strip {
+  display: block;
+  width: 100%;
+  max-width: 208px;
+  height: auto;
+  margin: 24px 0 0;
+}
+
+.cell {
+  fill: none;
+  stroke: var(--chip-edge);
+  stroke-width: 1.5;
+}
+
+.cell--stated {
+  fill: var(--ink-2);
+  stroke: var(--ink-2);
+}
+
+.cell--unconfirmed {
+  stroke: var(--ink-3);
+}
+
+.hatch {
+  stroke: var(--ink-3);
+  stroke-width: 1.25;
+}
+
+.count {
+  margin: 16px 0 0;
+  font-family: var(--mono);
   font-size: 0.875rem;
+  letter-spacing: -0.01em;
   color: var(--ink-2);
 }
 
+.key {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.key li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.kc {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  border: 1.5px solid var(--chip-edge);
+}
+
+.kc--stated {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+}
+
+.kc--unconfirmed {
+  border-color: var(--ink-3);
+  background: repeating-linear-gradient(45deg, var(--ink-3) 0 1px, transparent 1px 4px);
+}
+
+/* ---------------------------------------------------------------- channels */
+
 .slots {
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-left: auto;
-  padding: 0;
-  list-style: none;
 }
 
-/* One element with two states. A slot that is live and a slot that is inert
-   have identical geometry and position, so they cannot drift apart visually and
-   a reader cannot tell which is which by shape alone -- only by the state the
-   register put there. */
+/* The list items are the flex items, not the controls inside them, so sizing
+   has to pass through both or the controls stay at content width and the column
+   comes out ragged. */
+.slots li {
+  display: flex;
+  flex: 1 1 auto;
+}
+
+.slots .slot {
+  flex: 1 1 auto;
+}
+
+/* One element, two conditions, identical geometry. A live control carries the
+   destination's own mark; an inert one carries no mark at all, because a
+   platform logo on a control that goes nowhere implies a relationship that has
+   not been established. The dashed edge is the second, non-colour signal. */
 .slot {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 9px;
   min-height: 44px;
   min-width: 44px;
   padding: 0 14px;
   border: 1px solid var(--chip-edge);
-  border-radius: 2px;
-  background: var(--raised);
+  color: var(--ink-2);
+  font-family: var(--mono);
   font-size: 0.8125rem;
   text-decoration: none;
-  color: var(--ink-2);
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .slot[aria-disabled="true"] {
+  border-style: dashed;
   color: var(--ink-3);
   cursor: not-allowed;
 }
 
-.slot:focus-visible,
-a:focus-visible {
+.slot[href]:hover {
+  background: var(--raised);
+  color: var(--ink-1);
+  border-color: var(--ink-2);
+}
+
+.slot:focus-visible {
   outline: 2px solid var(--ink-1);
   outline-offset: 2px;
 }
 
+.mark {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  fill: currentColor;
+}
+
+.slot-name {
+  white-space: nowrap;
+}
+
+.asof {
+  margin: 28px 0 0;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
 /* ------------------------------------------------------------ lead: contract */
 
-/* The record that matters on launch night is lifted out of the list and set
-   first, in its own panel directly under the masthead. */
+/* The largest element on the page, and it is empty. That is the page's whole
+   argument, so it is set first and given room rather than tucked into the list. */
 .lead {
-  margin: 28px 0 0;
-  padding: 20px 22px;
-  background: var(--raised);
-  border: 1px solid var(--rule);
-  border-radius: 3px;
+  margin: 48px 0 0;
+  padding: 0 0 40px;
+  border-bottom: 1px solid var(--rule);
 }
 
-.lead-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 14px;
+.lead .label {
+  font-size: 1.375rem;
+  letter-spacing: -0.02em;
 }
 
-.lead h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--ink-1);
+.value--lead {
+  height: 2.75rem;
+  width: min(27rem, 100%);
+  margin-top: 18px;
+  background: repeating-linear-gradient(to right, var(--rule) 0 10px, transparent 10px 20px)
+    left bottom / 100% 2px no-repeat;
 }
 
-.lead p {
-  margin: 10px 0 0;
-  max-width: 62ch;
-  color: var(--ink-3);
-  font-size: 0.9375rem;
-}
-
-/* ------------------------------------------------------------------ docket */
+/* ----------------------------------------------------------------- groups */
 
 .group {
-  margin: 44px 0 0;
+  margin: 56px 0 0;
 }
 
-.group h2 {
+.group-title {
   margin: 0 0 4px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 
-/* A docket is a continuous list, so entries are ruled rather than boxed. Cards
-   would imply each entry stands alone. */
-.docket {
+.rows {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.entry {
+/* A ledger, not cards. Rows are ruled and continuous, because a register is one
+   list; boxing each entry would imply the entries stand alone. */
+.row {
   display: grid;
-  grid-template-columns: 2.5rem 1fr;
-  gap: 2px 12px;
-  padding: 18px 0;
-  border-bottom: 1px solid var(--rule);
-}
-
-.entry:first-child {
+  grid-template-columns: 3rem minmax(0, 1fr);
+  column-gap: 20px;
+  padding: 28px 0;
   border-top: 1px solid var(--rule);
 }
 
-/* Spans every row rather than a fixed two, so a stated entry's extra basis line
-   does not push itself into the index column. */
-.index {
-  grid-row: 1 / -1;
-  grid-column: 1;
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-  padding-top: 2px;
+.idx {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  padding-top: 5px;
 }
 
-.entry-head,
-.sentence,
-.basis {
-  grid-column: 2;
-}
-
-/* Inside the lead the index sits on the flex row beside the label, so the grid
-   placement above does not apply and the top nudge is not wanted. */
-.lead-head .index {
-  grid-row: auto;
-  padding-top: 0;
-}
-
-.entry-head {
+.head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
+  align-items: baseline;
+  column-gap: 16px;
+  row-gap: 4px;
 }
 
 .label {
+  margin: 0;
+  flex: 1 1 auto;
+  font-family: var(--mono);
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: -0.015em;
   color: var(--ink-1);
 }
 
-.sentence {
-  margin: 0;
-  max-width: 62ch;
-  color: var(--ink-3);
-  font-size: 0.9375rem;
-}
-
-/* What a stated value rests on. Set quieter than the value it supports, but not
-   hidden: it is the difference between a fact checked here and a fact inherited
-   from a statement about a group of projects. */
-.basis {
-  margin: 6px 0 0;
-  max-width: 62ch;
-  color: var(--ink-3);
-  font-size: 0.8125rem;
-}
-
-/* --------------------------------------------------------------- state chip */
-
-/* State is carried by the word, never by colour. There is no per-state hue,
-   and the ramp has no hue to give one. */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border: 1px solid var(--chip-edge);
-  border-radius: 2px;
-  background: var(--ground);
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
+.state {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
   color: var(--ink-2);
   white-space: nowrap;
+}
+
+.stamp {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------- value and blank */
+
+.value {
+  margin: 12px 0 0;
+  font-family: var(--mono);
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+
+/* A field with no value, at the size the value would have been. Not a
+   placeholder: nothing stands in for anything. The rule marks where the value
+   would sit, and the state word beside it says why it is empty.
+
+   The rule is drawn as a gradient rather than a dashed border so the dash
+   length is exact instead of whatever the engine picks. Broken, because a solid
+   rule reads as a divider and this is a field waiting on a value; the same
+   broken-versus-solid language separates an inert control from a live one. */
+.value--empty {
+  height: 1.75rem;
+  width: min(17rem, 100%);
+  background: repeating-linear-gradient(to right, var(--rule) 0 6px, transparent 6px 12px)
+    left bottom / 100% 1px no-repeat;
+}
+
+.basis,
+.note {
+  margin: 12px 0 0;
+  max-width: var(--measure);
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--ink-3);
+}
+
+.basis {
+  font-size: 0.8125rem;
 }
 
 /* --------------------------------------------------------------- colophon */
 
 .colophon {
-  margin: 56px 0 0;
-  padding-top: 20px;
+  margin: 64px 0 0;
+  padding-top: 24px;
   border-top: 1px solid var(--rule);
-  font-size: 0.8125rem;
-  color: var(--ink-3);
 }
 
 .colophon p {
-  margin: 0 0 8px;
-  max-width: 72ch;
+  margin: 0 0 10px;
+  max-width: var(--measure);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: var(--ink-3);
 }
 
 .colophon p:last-child {
   margin-bottom: 0;
 }
 
-@media (max-width: 40rem) {
-  .wrap {
-    padding: 28px 18px 72px;
+/* ------------------------------------------------------------------ desktop */
+
+/* Asymmetric: a fixed rail carrying identity and state, and a wider column
+   carrying the register, divided by one hairline. The rail sticks so the ratio
+   stays in view while the register scrolls past it. */
+@media (min-width: 62rem) {
+  :root {
+    --pad: 40px;
   }
 
+  .sheet {
+    display: grid;
+    grid-template-columns: minmax(232px, 288px) minmax(0, 1fr);
+    padding-top: 64px;
+  }
+
+  .rail {
+    border-right: 1px solid var(--rule);
+    padding-right: 44px;
+  }
+
+  .rail-in {
+    position: sticky;
+    top: 64px;
+  }
+
+  /* Capped rather than filling the grid column. A measure that sprawls to
+     1400px is not a measure, and the space left at the right edge is not waste
+     on a page whose subject is what is missing. */
+  .register {
+    padding-left: 56px;
+    max-width: 872px;
+  }
+
+  .lead {
+    margin-top: 0;
+  }
+
+  .wordmark {
+    font-size: 2.375rem;
+  }
+
+  /* Fills the rail. The ratio of known to unknown is the page's actual subject,
+     so it gets the width rather than being a small ornament under the name. */
+  .strip {
+    max-width: 100%;
+    margin-top: 28px;
+  }
+
+  /* The first screen is mostly an empty field, on purpose. This is the record
+     that matters on launch night and it has no value, so it is given the room a
+     value would have needed. Not a hero: it is a field label, a state and a
+     rule with nothing on it, and it makes no claim. */
+  .lead {
+    padding-bottom: 60px;
+  }
+
+  .lead .label {
+    font-size: 2rem;
+  }
+
+  .value--lead {
+    height: 4.5rem;
+    width: min(34rem, 100%);
+    margin-top: 26px;
+  }
+
+  /* One control per line, full width of the rail. Wrapped inline they read as
+     loose chips; stacked they read as a list of channels, and the marks align
+     into a column the eye can run down. */
   .slots {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .row {
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    padding: 32px 0;
+  }
+}
+
+/* ------------------------------------------------------------------- mobile */
+
+/* Designed for 360 rather than squeezed into it. The index column stays,
+   narrower, because it is what makes this read as a register rather than a
+   stack of headings; everything else gives width back to the measure. */
+@media (max-width: 30rem) {
+  :root {
+    --pad: 20px;
+    --measure: 24rem;
+  }
+
+  .sheet {
+    padding-top: 32px;
+    padding-bottom: 72px;
+  }
+
+  .wordmark {
+    font-size: 1.75rem;
+  }
+
+  .strip {
+    max-width: 100%;
+    margin-top: 20px;
+  }
+
+  .lead {
+    margin-top: 36px;
+    padding-bottom: 32px;
+  }
+
+  .lead .label {
+    font-size: 1.1875rem;
+  }
+
+  .value--lead {
+    height: 3.25rem;
+    width: 100%;
+    margin-top: 16px;
+  }
+
+  .row {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    column-gap: 12px;
+    padding: 24px 0;
+  }
+
+  .label {
+    flex: 1 1 100%;
+  }
+
+  .state {
     margin-left: 0;
+  }
+
+  .value {
+    font-size: 1rem;
+  }
+
+  .value--empty {
     width: 100%;
   }
 
-  .entry {
-    grid-template-columns: 2rem 1fr;
+  .slots {
+    gap: 8px;
+  }
+
+  .slot {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
   }
 }

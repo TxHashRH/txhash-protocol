@@ -134,8 +134,18 @@ function gateRenderCoverage() {
   }
 
   const t = tally();
-  const expected = `${t.total} records &middot; ${t.stated} stated &middot; ${t.unconfirmed} not confirmed &middot; ${t.absent} not supplied`;
-  if (!html.includes(expected)) bad.push(`the tally on the page is not the register's own: expected "${expected}"`);
+
+  const counted = `${t.total} fields. ${t.stated} recorded, ${t.open} open.`;
+  if (!html.includes(counted)) bad.push(`the count on the page is not the register's own: expected "${counted}"`);
+
+  /* The masthead strip is the register in miniature, so it must have exactly one
+     cell per record. A strip that disagreed with the list below it would be a
+     figure drawn rather than derived. */
+  const cells = (html.match(/class="cell cell--/g) || []).length;
+  if (cells !== records.length) bad.push(`the strip shows ${cells} cells for ${records.length} records`);
+
+  const stripLabel = `${t.stated} recorded, ${t.unconfirmed} not confirmed, ${t.absent} not supplied.`;
+  if (!html.includes(stripLabel)) bad.push(`the strip's description is not the register's own tally`);
 
   /* Every sentence the document shows must be the record's own wording, not a
      rewrite at the render site. */
@@ -159,22 +169,34 @@ function gateRenderCoverage() {
     }
   }
 
-  /* Each non-stated record's chip carries the date its state was established,
-     so an absence renders as a dated statement rather than an open-ended one. */
-  const chips = [...html.matchAll(/<span class="chip">([^<]*)<\/span>/g)].map((m) => m[1]);
-  const undated = chips.filter((c) => !c.includes(CHECKED));
-  if (undated.length) bad.push(`${undated.length} state chip(s) carry no date`);
-  if (chips.length !== records.length) {
-    bad.push(`${chips.length} chips for ${records.length} records`);
+  /* Every record carries the date its state was established, so an absence
+     renders as a dated statement rather than an open-ended one, and a row can be
+     re-checked on its own without the others claiming to have been.
+
+     Checked per record rather than by counting stamps document-wide: splitting
+     on the record attribute gives each record's own region, so a row that lost
+     its date cannot be covered for by a stamp somewhere else on the page. */
+  const regions = html.split('data-record="').slice(1);
+  for (const seg of regions) {
+    const id = seg.slice(0, seg.indexOf('"'));
+    if (!seg.includes(`<time class="stamp" datetime="${CHECKED}"`)) {
+      bad.push(`${id}: renders without a date, so its state reads as open-ended`);
+    }
   }
+
+  /* And no date anywhere may be a stale one. */
+  const stale = [...html.matchAll(/<time[^>]*datetime="([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((d) => d !== CHECKED);
+  if (stale.length) bad.push(`${stale.length} date(s) on the page are not ${CHECKED}: ${[...new Set(stale)].join(', ')}`);
 
   record(
     'render coverage and tally',
     bad.length === 0,
     bad.length
       ? bad.join('\n    ')
-      : `${records.length} records, each rendered exactly once; ${chips.length} chips all dated ${CHECKED}; ` +
-          `tally on page derived from register length`
+      : `${records.length} records, each rendered exactly once and each dated ${CHECKED}; ` +
+          `${cells}-cell strip and every count derived from the register's own length`
   );
 }
 
@@ -370,12 +392,42 @@ function gateChannelSlots() {
       }
     }
 
-    /* No third-party brand mark inside a slot. Naming a destination in text is a
-       description; drawing its logo is using its trademark, and only the second
-       is forbidden. The href is exempt, because once a channel is live its URL
-       necessarily contains the service's name and that is the description. */
-    const artwork = slot.replace(/href="[^"]*"/, '');
-    if (/<svg|<img|background-image/i.test(artwork)) bad.push(`slot ${id}: ships artwork`);
+    /* Marks are checked against the destination, not banned by shape.
+
+       An earlier version of this gate failed any slot containing artwork. That
+       was right while no channel was wired and wrong the moment one was: the
+       mark on a live control is wayfinding, it says where the button goes, and
+       the mark and the destination are the same entity. Banning by shape would
+       have rejected a correct change, the same way a blanket address-reject
+       rejects a real address. So the rule is a correspondence, not a ban, and
+       it fails in both directions:
+
+         live   a mark is allowed, and its host must be the host of the record's
+                own value. Any other artwork in the slot fails.
+         inert  no mark at all. A platform logo on a control that goes nowhere
+                asserts a relationship that has not been established. */
+    const svgCount = (slot.match(/<svg\b/gi) || []).length;
+    const imgCount = (slot.match(/<img\b/gi) || []).length;
+    const declared = slot.match(/data-mark="([^"]+)"/);
+
+    if (isStated(r) && links[id]) {
+      let host = null;
+      try {
+        host = new URL(links[id]).host.replace(/^www\./, '');
+      } catch {
+        bad.push(`slot ${id}: destination is not a parseable url`);
+      }
+      if (declared && host && declared[1] !== host) {
+        bad.push(`slot ${id}: carries the mark of "${declared[1]}" while pointing at ${host}`);
+      } else if (declared && host) {
+        lines.push(`slot ${id}: mark "${declared[1]}" is the host of its own destination`);
+      }
+      if (svgCount > (declared ? 1 : 0) || imgCount > 0) {
+        bad.push(`slot ${id}: carries artwork that is not its destination's mark`);
+      }
+    } else if (svgCount > 0 || imgCount > 0 || declared) {
+      bad.push(`slot ${id}: carries a mark while its record is not stated`);
+    }
   }
 
   record('channel slots', bad.length === 0, bad.length ? bad.join('\n    ') : lines.join('\n    '));

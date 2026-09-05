@@ -10,50 +10,27 @@
  * A record carries an explicit `state`, one of:
  *
  *   stated       a value exists, a source is recorded, and it was verified.
- *                Only this state may render a value, a link, or a control.
+ *                Only this state may render a value, a link, or a mark.
  *   unconfirmed  the client supplied something and it did not verify, or has
  *                not verified yet. `candidate` holds what we were given. It is
  *                rendered as text inside the sentence that reports the check,
  *                never as a destination.
  *   absent       nothing was supplied. `value` and `candidate` are both null.
  *
- * `state` is written out rather than inferred so that it can be read at a
- * glance, and the register-integrity gate fails the build if it disagrees with
- * the fields beside it. An explicit state that can drift from its own value is
+ * `state` is written out rather than inferred so it can be read at a glance,
+ * and the register-integrity gate fails the build if it disagrees with the
+ * fields beside it. An explicit state that can drift from its own value is
  * worse than no state at all, so the gate is what makes writing it safe.
  *
  * `value: null` is the honest unknown. It is never an empty string, a zero, a
  * dash, or an ellipsis. A renderer handed a non-stated record emits that
- * record's `absent` sentence and its state chip. It never emits an href, a
- * copy control, a number, or any glyph that could be mistaken for a real value
- * that happens to be short.
+ * record's `absent` sentence and its state. It never emits an href, a copy
+ * control, a platform mark, a number, or any glyph that could be mistaken for a
+ * real value that happens to be short.
  *
  * Order in this array is render order. `contract` is first deliberately, and a
  * gate enforces it.
  */
-
-/** Provenance of a value. A record with a value but no source cannot be stated. */
-export const SOURCE = {
-  CLIENT: 'client, for this project specifically',
-  /**
-   * A statement the client made about a batch of projects rather than about
-   * this one.
-   *
-   * It is a separate source from CLIENT on purpose. Both are the client's own
-   * words and both are good enough to state a value, but they do not rest on
-   * the same thing: a batch-level statement is an inference from a set to a
-   * member, and it is only as good as this project actually belonging to that
-   * set. Collapsing the two would hide that, and if the batch ever turns out to
-   * have an exception, the record would give no way to see what it rested on.
-   * Written out in full so the page can show the basis rather than paraphrase it.
-   */
-  CLIENT_BATCH:
-    'client statement of 2026-09-02, given for the project batch rather than for this site individually',
-  DNS: 'resolved from dns',
-  HTTP: 'read over http',
-  ONCHAIN: 'read from chain',
-  NONE: null,
-};
 
 export const STATE = {
   STATED: 'stated',
@@ -62,32 +39,26 @@ export const STATE = {
 };
 
 /**
- * The date every check on this page was last run. Absent and unconfirmed
- * sentences are dated from here rather than from a literal typed into each
- * one, so a re-check is a single edit and no entry can carry a stale date
- * while its neighbour carries a fresh one.
+ * The date every check on this page was last run.
+ *
+ * Sentences and sources are dated from here rather than from a literal typed
+ * into each one, so a re-check is a single edit and no entry can carry a stale
+ * date while its neighbour carries a fresh one. Two records changed state on
+ * this date; one of them had failed the day before, which is the whole reason
+ * nothing here is carried forward on trust.
  */
-export const CHECKED = '2026-09-05';
+export const CHECKED = '2026-09-06';
 
 /**
- * How a contract address would be checked if one were supplied.
+ * How a contract address is checked if one is supplied.
  *
- * `rpc` stays null while no chain is named, because there is no network to ask.
- * The contract gate treats an address with no way to verify it as a build
- * failure rather than as something to display and hope about, so filling in
- * `value` without also naming a chain and an endpoint cannot ship.
+ * Re-confirmed on 2026-09-06: eth_chainId returned 0x1237 and the endpoint was
+ * at block 0x34b9ca7. The chain id is checked before any address is read,
+ * because an endpoint answering is not evidence it answered about the right
+ * network.
  */
 export const chainProbe = {
   rpc: 'https://rpc.mainnet.chain.robinhood.com',
-  /**
-   * The chain the endpoint above must actually be. Checked before any address
-   * is read, because `eth_getCode` answering is not evidence it answered about
-   * the right network -- a wrong or redirected endpoint would return bytecode
-   * for some other chain's address and the gate would happily pass it.
-   *
-   * Verified live on 2026-09-05: eth_chainId returned 0x1237, net_version
-   * returned 4663, and the endpoint was at block 0x349ad0c.
-   */
   expectedChainId: '0x1237',
   expectCode: true,
 };
@@ -106,16 +77,16 @@ export const records = [
     id: 'contract',
     label: 'Contract address',
     /* Its own group, not `subject`. The contract record is lifted out of the
-       docket into a panel of its own directly under the masthead, so giving it
-       a group nothing else shares is what keeps it from rendering twice. The
-       render-coverage gate checks every record appears exactly once. */
+       register into a block of its own, so giving it a group nothing else
+       shares is what keeps it from rendering twice. The render-coverage gate
+       checks every record appears exactly once. */
     group: 'contract',
     state: STATE.ABSENT,
     value: null,
     candidate: null,
-    source: SOURCE.NONE,
+    source: null,
     absent:
-      'Not supplied. No address has been given to us, and whether one exists is unknown rather than assumed either way. No address is shown here, and this document contains no control for copying one.',
+      'No address has been given to us, and whether one exists is unknown rather than assumed either way. Nothing is shown here, and this document contains no control for copying an address.',
     present: (v) => v,
   },
 
@@ -123,22 +94,18 @@ export const records = [
     id: 'chain',
     label: 'Chain',
     group: 'subject',
-    /* Stated on the client's own statement of 2026-09-02, which covered the
-       project batch rather than this site individually. That distinction is
-       carried in the source and rendered as the basis, so the record shows what
-       it rests on and an exception in the batch would be visible rather than
-       buried.
-
-       The reference site this page's structure was discussed against also runs
-       on this network. That is not the basis and is not evidence: it was denied
-       as a source while this record was absent precisely so the value could not
-       be picked up from there, and the value arrived from the client instead. */
+    /* The reference site whose structure was discussed during design also runs
+       on this network. That is not the basis and is not evidence: the term was
+       denied as a source while this record was absent, precisely so the value
+       could not be picked up from there, and it arrived from the client
+       instead. */
     state: STATE.STATED,
     value: 'Robinhood Chain',
     candidate: null,
-    source: SOURCE.CLIENT_BATCH,
+    source:
+      'client statement of 2026-09-02, given for the project batch rather than for this site individually',
     absent:
-      'Not supplied. No network has been named. None is named here, and none is inferred from the project name, from the domain, or from any site this one was compared against during its design.',
+      'No network has been named. None is named here, and none is inferred from the project name, from the domain, or from any site this one was compared against during its design.',
     present: (v) => v,
   },
 
@@ -146,12 +113,16 @@ export const records = [
     id: 'product',
     label: 'What this is',
     group: 'subject',
+    /* The X account's bio describes a product. It is not lifted here. A bio is
+       something the client wrote on somebody else's platform, not a description
+       given to us, and copying it would turn an unverified marketing line into
+       a fact this page asserts. */
     state: STATE.ABSENT,
     value: null,
     candidate: null,
-    source: SOURCE.NONE,
+    source: null,
     absent:
-      'Not supplied. What this project does has not been described to us. Nothing on this page describes it, and nothing here is inferred from the name.',
+      'What this project does has not been described to us. Nothing on this page describes it, and nothing here is inferred from the name or from anything written elsewhere.',
     present: (v) => v,
   },
 
@@ -161,12 +132,10 @@ export const records = [
     group: 'channels',
     state: STATE.UNCONFIRMED,
     value: null,
-    /* Supplied by the client. Held as a candidate, not a value: it is rendered
-       as text inside the sentence reporting the check and is never linked. */
     candidate: 'https://txhash.xyz',
-    source: SOURCE.NONE,
+    source: null,
     absent:
-      'Supplied by the client as txhash.xyz, and it does not resolve. A, AAAA, NS and TXT queries to 8.8.8.8 all returned NXDOMAIN. NXDOMAIN at the NS level means the name is not delegated, so the domain is not registered or not yet live. Nothing links here until it answers.',
+      'Registered, and not serving. Yesterday every query returned NXDOMAIN. Today an A record resolves to 162.255.119.14, HTTP answers 302 to a www host, and HTTPS resets the connection without returning anything. A name that resolves is not a site, so nothing links here until it answers.',
     present: hostFrom,
   },
 
@@ -174,16 +143,15 @@ export const records = [
     id: 'x',
     label: 'X account',
     group: 'channels',
-    state: STATE.UNCONFIRMED,
-    /* One field. When this becomes stated the canonical URL is stored here and
-       the handle a reader sees is derived from it by `present`, so the two
-       cannot drift. Neither candidate below is promoted to a value: one is
-       someone else's account and the other does not exist. */
-    value: null,
+    /* One field. The URL is stored and the handle a reader sees is derived from
+       it, so the two cannot drift. This returned 404 on 2026-09-05 and was
+       re-checked rather than carried forward. */
+    state: STATE.STATED,
+    value: 'https://x.com/TxHashRH',
     candidate: null,
-    source: SOURCE.NONE,
+    source: `client, and opened logged out on ${CHECKED}: the profile renders and joined September 2026. A handle known not to exist returned 404 in the same session, so the reading distinguishes a live account from a dead one. The other handle put forward, x.com/TxHash, is an unrelated account from August 2017`,
     absent:
-      'Two handles were put forward and neither is usable. x.com/TxHash opens logged out to an unrelated account that joined in August 2017 and points at a different domain; it is not this project. x.com/TxHashRH returns a 404 and does not exist. An unregistered handle is not a safe one, since anyone may take it before launch, so no account is linked until one is confirmed to belong to this project.',
+      'No account has been confirmed as belonging to this project, so none is linked. A name that resolves is not evidence that it is the right one.',
     present: handleFrom,
   },
 
@@ -191,12 +159,11 @@ export const records = [
     id: 'repo',
     label: 'Source repository',
     group: 'channels',
-    state: STATE.ABSENT,
-    value: null,
+    state: STATE.STATED,
+    value: 'https://github.com/TxHashRH/txhash-protocol',
     candidate: null,
-    source: SOURCE.NONE,
-    absent:
-      'Not supplied. No repository has been given, and none is assumed to exist.',
+    source: `client, and checked on ${CHECKED}: 200 without following redirects, listed among the account's public repositories, and the owner casing above is the API's own full_name rather than the spelling we were sent`,
+    absent: 'No repository has been given, and none is assumed to exist.',
     present: repoFrom,
   },
 
@@ -207,13 +174,13 @@ export const records = [
     state: STATE.ABSENT,
     value: null,
     candidate: null,
-    source: SOURCE.NONE,
-    /* The client raised this channel only to rule it out. It is listed rather
-       than dropped: a channel that was discussed and has no confirmed address
-       is a known absence, and a reader is better served by seeing that it was
-       considered than by finding a gap they cannot interpret. */
+    source: null,
+    /* Raised by the client only to rule out. Listed rather than dropped: a
+       channel that was discussed and has no confirmed address is a known
+       absence, and a reader is better served seeing it was considered than
+       finding a gap they cannot interpret. */
     absent:
-      'Raised, then ruled out. No invite has been confirmed, so none is published. A stale or wrong invite is worse than none, because it sends people somewhere this project does not control.',
+      'Raised, then ruled out. No invite has been confirmed, so none is published. A wrong invite is worse than none, because it sends people somewhere this project does not control.',
     present: (v) => v,
   },
 ];
@@ -223,7 +190,7 @@ export const groups = [
   { id: 'channels', title: 'Channels' },
 ];
 
-/** Only a stated record may render a value, an href, or a control. */
+/** Only a stated record may render a value, an href, a mark, or a control. */
 export const isStated = (r) => r.state === STATE.STATED;
 
 /**
@@ -233,10 +200,6 @@ export const isStated = (r) => r.state === STATE.STATED;
  * them can go stale. The destination is read back out of the record's own
  * `value`, so a channel cannot be linked without being stated, and a stated
  * channel cannot point somewhere other than what the page displays.
- *
- * This list also drives the channel slots and the count the gate checks, so
- * adding a channel is adding an id here and a record above. Nothing may be
- * rendered for an id that has no record.
  */
 export const CHANNEL_IDS = ['domain', 'x', 'repo', 'discord'];
 
